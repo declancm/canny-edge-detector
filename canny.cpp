@@ -1,5 +1,7 @@
 #include "canny.h"
 
+// TODO: implement a function to read and write the images.
+
 void cannyEdgeDetection(std::string readLocation, std::string writeLocation, double lowerThreshold, double higherThreshold) {
     if (readLocation == writeLocation) {
         std::cout << "The read file and save file locations cannot be the same.\n";
@@ -272,31 +274,3 @@ int* cannyFilter(int* pixels, uint8_t* pixelPtrGray, int sizeRows, int sizeCols,
 
     return pixelsCanny;
 }
-
-// int main() {
-
-//     std::string data;
-
-//     // open a jpeg file
-//     // CImage for a library
-//     // bitmap might be easier as no compression if no library
-
-//     std::string path = "GokuBlack.bmp";
-//     std::fstream file;
-//     file.open(path, std::ios_base::out | std::ios::binary);
-//     // file >> data;
-
-//     // file.rdbuf();
-
-//     if (file.is_open()) {
-//         std::cout << "The file is open." << std::endl;
-//         // std::cout << file.rdbuf() << std::endl;
-//         // file.read();
-//     }
-//     file.close();
-
-//     // apply a gausian filter/blur
-
-//     // apply canny edge detection
-
-// }
