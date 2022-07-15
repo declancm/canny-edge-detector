@@ -10,24 +10,25 @@ void cannyEdgeDetection(std::string readLocation, std::string writeLocation, dou
     cv::Mat img = cv::imread(readLocation);
 
     // READ_FILE:
+
     uint8_t* pixelPtr = (uint8_t*)img.data;
     int sizeRows = img.rows;
     int sizeCols = img.cols;
     int sizeDepth = img.channels();
-    int* pixels = imgToArray(img, sizeRows, sizeCols, sizeDepth, pixelPtr);
+    std::vector<int> pixels = imgToArray(img, pixelPtr, sizeRows, sizeCols, sizeDepth);
 
     arrayToImg(pixels, pixelPtr, sizeRows, sizeCols, sizeDepth);
     // cv::imshow("Original", img);
 
     // GAUSSIAN_BLUR:
 
-    double kernel[5][5] = {{2.0, 4.0, 5.0, 4.0, 2.0},
-                           {4.0, 9.0, 12.0, 9.0, 4.0},
-                           {5.0, 12.0, 15.0, 12.0, 5.0},
-                           {4.0, 9.0, 12.0, 9.0, 4.0},
-                           {2.0, 4.0, 5.0, 4.0, 2.0}};
+    std::vector<std::vector<double>> kernel = {{2.0, 4.0, 5.0, 4.0, 2.0},
+                                               {4.0, 9.0, 12.0, 9.0, 4.0},
+                                               {5.0, 12.0, 15.0, 12.0, 5.0},
+                                               {4.0, 9.0, 12.0, 9.0, 4.0},
+                                               {2.0, 4.0, 5.0, 4.0, 2.0}};
     double kernelConst = (1.0 / 159.0);
-    int* pixelsBlur = gaussianBlur(pixels, kernel, kernelConst, sizeRows, sizeCols, sizeDepth);
+    std::vector<int> pixelsBlur = gaussianBlur(pixels, kernel, kernelConst, sizeRows, sizeCols, sizeDepth);
 
     arrayToImg(pixelsBlur, pixelPtr, sizeRows, sizeCols, sizeDepth);
     // cv::imshow("Blurred", img);
@@ -37,52 +38,49 @@ void cannyEdgeDetection(std::string readLocation, std::string writeLocation, dou
     cv::Mat imgGrayscale(sizeRows, sizeCols, CV_8UC1, cv::Scalar(0));
     uint8_t* pixelPtrGray = (uint8_t*)imgGrayscale.data;
 
-    int* pixelsGray = rgbToGrayscale(pixels, sizeRows, sizeCols, sizeDepth);
+    std::vector<int> pixelsGray = rgbToGrayscale(pixelsBlur, sizeRows, sizeCols, sizeDepth);
     arrayToImg(pixelsGray, pixelPtrGray, sizeRows, sizeCols, 1);
     // cv::imshow("Grayscale", imgGrayscale);
 
     // CANNY_FILTER:
-    int* pixelsCanny = cannyFilter(pixelsGray, pixelPtrGray, sizeRows, sizeCols, 1, lowerThreshold, higherThreshold);
+
+    std::vector<int> pixelsCanny = cannyFilter(pixelsGray, sizeRows, sizeCols, 1, lowerThreshold, higherThreshold);
     arrayToImg(pixelsCanny, pixelPtrGray, sizeRows, sizeCols, 1);
 
     cv::imshow("CannyEdgeDetection", imgGrayscale);
     cv::waitKey(0);
 
     cv::imwrite(writeLocation, imgGrayscale);
-
-    delete[] pixels;
-    delete[] pixelsGray;
-    delete[] pixelsCanny;
 }
 
-int* imgToArray(cv::Mat img, int sizeRows, int sizeCols, int sizeDepth, uint8_t* pixelPtr) {
-    int* pixels = new int[sizeRows * sizeCols * sizeDepth];
+std::vector<int> imgToArray(cv::Mat img, uint8_t* pixelPtr, int sizeRows, int sizeCols, int sizeDepth) {
+    std::vector<int> pixels(sizeRows * sizeCols * sizeDepth);
     for (int i = 0; i < sizeRows; i++) {
         for (int j = 0; j < sizeCols; j++) {
             for (int k = 0; k < sizeDepth; k++) {
+                // converting BGR to RGB colors
                 pixels[i * sizeCols * sizeDepth + j * sizeDepth + k] =
-                    // converting BGR to RGB
-                    pixelPtr[i * sizeCols * sizeDepth + j * sizeDepth + 2 - k];
+                    (int)pixelPtr[i * sizeCols * sizeDepth + j * sizeDepth + 2 - k];
             }
         }
     }
     return pixels;
 }
 
-void arrayToImg(int* pixels, uint8_t* pixelPtr, int sizeRows, int sizeCols, int sizeDepth) {
-    int* result = new int[sizeRows * sizeCols * sizeDepth];
+void arrayToImg(std::vector<int>& pixels, uint8_t* pixelPtr, int sizeRows, int sizeCols, int sizeDepth) {
     for (int i = 0; i < sizeRows; i++) {
         for (int j = 0; j < sizeCols; j++) {
             for (int k = 0; k < sizeDepth; k++) {
                 pixelPtr[i * sizeCols * sizeDepth + j * sizeDepth + k] =
-                    pixels[i * sizeCols * sizeDepth + j * sizeDepth + (sizeDepth - 1 - k)];
+                    (uint8_t)pixels[i * sizeCols * sizeDepth + j * sizeDepth + (sizeDepth - 1 - k)];
             }
         }
     }
     return;
 }
 
-int* gaussianBlur(int* pixels, double kernel[5][5], double kernelConst, int sizeRows, int sizeCols, int sizeDepth) {
+std::vector<int> gaussianBlur(std::vector<int>& pixels, std::vector<std::vector<double>>& kernel, double kernelConst, int sizeRows, int sizeCols, int sizeDepth) {
+    std::vector<int> pixelsBlur(sizeRows * sizeCols * sizeDepth);
     for (int i = 0; i < sizeRows; i++) {
         for (int j = 0; j < sizeCols; j++) {
             for (int k = 0; k < sizeDepth; k++) {
@@ -97,35 +95,33 @@ int* gaussianBlur(int* pixels, double kernel[5][5], double kernelConst, int size
                         }
                     }
                 }
-                pixels[i * sizeCols * sizeDepth + j * sizeDepth + k] = (int)(sum / sumKernel);
+                pixelsBlur[i * sizeCols * sizeDepth + j * sizeDepth + k] = (int)(sum / sumKernel);
             }
         }
     }
-    return pixels;
+    return pixelsBlur;
 }
 
-int* rgbToGrayscale(int* pixels, int sizeRows, int sizeCols, int sizeDepth) {
-    int* pixelsGray = new int[sizeRows * sizeCols];
+std::vector<int> rgbToGrayscale(std::vector<int>& pixels, int sizeRows, int sizeCols, int sizeDepth) {
+    std::vector<int> pixelsGray(sizeRows * sizeCols);
     for (int i = 0; i < sizeRows; i++) {
         for (int j = 0; j < sizeCols; j++) {
             int sum = 0;
             for (int k = 0; k < sizeDepth; k++) {
                 sum = sum + pixels[i * sizeCols * sizeDepth + j * sizeDepth + k];
             }
-            pixelsGray[i * sizeCols + j] = (sum / sizeDepth);
+            pixelsGray[i * sizeCols + j] = (int)(sum / sizeDepth);
         }
     }
     return pixelsGray;
 }
 
-int* cannyFilter(int* pixels, uint8_t* pixelPtrGray, int sizeRows, int sizeCols, int sizeDepth, double lowerThreshold, double higherThreshold) {
-    // intializing before canny
-    int* pixelsCanny = new int[sizeRows * sizeCols];
+std::vector<int> cannyFilter(std::vector<int>& pixels, int sizeRows, int sizeCols, int sizeDepth, double lowerThreshold, double higherThreshold) {
+    std::vector<int> pixelsCanny(sizeRows * sizeCols);
     int gx[3][3] = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
     int gy[3][3] = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
     double* G = new double[sizeRows * sizeCols];
-    int* direction = new int[sizeRows * sizeCols];
-    int* theta = new int[sizeRows * sizeCols];
+    std::vector<int> theta(sizeRows * sizeCols);
     double largestG = 0;
 
     // perform canny edge detection on everything but the edges
@@ -152,55 +148,34 @@ int* cannyFilter(int* pixels, uint8_t* pixelPtrGray, int sizeRows, int sizeCols,
             if (i == 1) {
                 G[i * sizeCols + j - 1] = G[i * sizeCols + j];
                 theta[i * sizeCols + j - 1] = theta[i * sizeCols + j];
-            }
-            if (j == 1) {
+            } else if (j == 1) {
                 G[(i - 1) * sizeCols + j] = G[i * sizeCols + j];
                 theta[(i - 1) * sizeCols + j] = theta[i * sizeCols + j];
-            }
-            if (i == sizeRows - 1) {
+            } else if (i == sizeRows - 1) {
                 G[i * sizeCols + j + 1] = G[i * sizeCols + j];
                 theta[i * sizeCols + j + 1] = theta[i * sizeCols + j];
-            }
-            if (j == sizeCols - 1) {
+            } else if (j == sizeCols - 1) {
                 G[(i + 1) * sizeCols + j] = G[i * sizeCols + j];
                 theta[(i + 1) * sizeCols + j] = theta[i * sizeCols + j];
             }
+
             // setting the corners
             if (i == 1 && j == 1) {
                 G[(i - 1) * sizeCols + j - 1] = G[i * sizeCols + j];
                 theta[(i - 1) * sizeCols + j - 1] = theta[i * sizeCols + j];
-            }
-            if (i == 1 && j == sizeCols - 1) {
+            } else if (i == 1 && j == sizeCols - 1) {
                 G[(i - 1) * sizeCols + j + 1] = G[i * sizeCols + j];
                 theta[(i - 1) * sizeCols + j + 1] = theta[i * sizeCols + j];
-            }
-            if (i == sizeRows - 1 && j == 1) {
+            } else if (i == sizeRows - 1 && j == 1) {
                 G[(i + 1) * sizeCols + j - 1] = G[i * sizeCols + j];
                 theta[(i + 1) * sizeCols + j - 1] = theta[i * sizeCols + j];
-            }
-            if (i == sizeRows - 1 && j == sizeCols - 1) {
+            } else if (i == sizeRows - 1 && j == sizeCols - 1) {
                 G[(i + 1) * sizeCols + j + 1] = G[i * sizeCols + j];
                 theta[(i + 1) * sizeCols + j + 1] = theta[i * sizeCols + j];
             }
 
             // round to the nearest 45 degrees
-            if (theta[i * sizeCols + j] >= 23 && theta[i * sizeCols + j] < 68) {
-                direction[i * sizeCols + j] = 45;
-            } else if (theta[i * sizeCols + j] >= 68 && theta[i * sizeCols + j] < 113) {
-                direction[i * sizeCols + j] = 90;
-            } else if (theta[i * sizeCols + j] >= 113 && theta[i * sizeCols + j] < 157) {
-                direction[i * sizeCols + j] = 135;
-            } else if (theta[i * sizeCols + j] >= 157 && theta[i * sizeCols + j] < 203) {
-                direction[i * sizeCols + j] = 180;
-            } else if (theta[i * sizeCols + j] >= 203 && theta[i * sizeCols + j] < 247) {
-                direction[i * sizeCols + j] = 225;
-            } else if (theta[i * sizeCols + j] >= 247 && theta[i * sizeCols + j] < 293) {
-                direction[i * sizeCols + j] = 270;
-            } else if (theta[i * sizeCols + j] >= 293 && theta[i * sizeCols + j] < 337) {
-                direction[i * sizeCols + j] = 315;
-            } else {
-                direction[i * sizeCols + j] = 0;
-            }
+            theta[i * sizeCols + j] = round(theta[i * sizeCols + j] / 45) * 45;
         }
     }
     for (int i = 1; i < sizeRows - 1; i++) {
@@ -211,22 +186,19 @@ int* cannyFilter(int* pixels, uint8_t* pixelPtrGray, int sizeRows, int sizeCols,
     // non-maximum suppression
     for (int i = 1; i < sizeRows - 1; i++) {
         for (int j = 1; j < sizeCols - 1; j++) {
-            if (direction[i * sizeCols + j] == 0 || direction[i * sizeCols + j] == 180) {
+            if (theta[i * sizeCols + j] == 0 || theta[i * sizeCols + j] == 180) {
                 if (G[i * sizeCols + j] < G[i * sizeCols + j - 1] || G[i * sizeCols + j] < G[i * sizeCols + j + 1]) {
                     G[i * sizeCols + j] = 0;
                 }
-            }
-            if (direction[i * sizeCols + j] == 45 || direction[i * sizeCols + j] == 225) {
+            } else if (theta[i * sizeCols + j] == 45 || theta[i * sizeCols + j] == 225) {
                 if (G[i * sizeCols + j] < G[(i + 1) * sizeCols + j + 1] || G[i * sizeCols + j] < G[(i - 1) * sizeCols + j - 1]) {
                     G[i * sizeCols + j] = 0;
                 }
-            }
-            if (direction[i * sizeCols + j] == 90 || direction[i * sizeCols + j] == 270) {
+            } else if (theta[i * sizeCols + j] == 90 || theta[i * sizeCols + j] == 270) {
                 if (G[i * sizeCols + j] < G[(i + 1) * sizeCols + j] || G[i * sizeCols + j] < G[(i - 1) * sizeCols + j]) {
                     G[i * sizeCols + j] = 0;
                 }
-            }
-            if (direction[i * sizeCols + j] == 135 || direction[i * sizeCols + j] == 315) {
+            } else {
                 if (G[i * sizeCols + j] < G[(i + 1) * sizeCols + j - 1] || G[i * sizeCols + j] < G[(i - 1) * sizeCols + j + 1]) {
                     G[i * sizeCols + j] = 0;
                 }
@@ -237,10 +209,9 @@ int* cannyFilter(int* pixels, uint8_t* pixelPtrGray, int sizeRows, int sizeCols,
     }
 
     // double threshold
-    int count = 0;
-    int changes = 1;
-    while (changes == 1) {
-        changes = 0;
+    bool changes;
+    do {
+        changes = false;
         for (int i = 1; i < sizeRows - 1; i++) {
             for (int j = 1; j < sizeCols - 1; j++) {
                 if (G[i * sizeCols + j] < (lowerThreshold * largestG)) {
@@ -251,26 +222,23 @@ int* cannyFilter(int* pixels, uint8_t* pixelPtrGray, int sizeRows, int sizeCols,
                     int tempG = G[i * sizeCols + j];
                     G[i * sizeCols + j] = 0;
                     for (int x = -1; x <= 1; x++) {
+                        bool breakNestedLoop = false;
                         for (int y = -1; y <= 1; y++) {
                             if (x == 0 && y == 0) { continue; }
                             if (G[(i + x) * sizeCols + (j + y)] >= (higherThreshold * largestG)) {
                                 G[i * sizeCols + j] = (higherThreshold * largestG);
-                                changes = 1;
+                                changes = true;
+                                breakNestedLoop = true;
                                 break;
                             }
                         }
+                        if (breakNestedLoop) { break; }
                     }
                 }
                 pixelsCanny[i * sizeCols + j] = (int)(G[i * sizeCols + j] * (255.0 / largestG));
             }
         }
-        count++;
-        if (count > (sizeRows * sizeCols)) {
-            std::cout << "The count was exceeded.\n";
-            return NULL;
-        }
-    }
-    // std::cout << count << "\n";
+    } while (changes);
 
     return pixelsCanny;
 }
